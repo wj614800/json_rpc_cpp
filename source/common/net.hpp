@@ -81,7 +81,7 @@ namespace JsonRpc
             int32_t id_len=buffer->ReadInt32();
             if(id_len+IdLenFieldLength+MTypeFieldLength>total_len)
             {
-                LOG_ERROR("id字段太长");
+                LOG_WARN("RPC消息ID长度非法: total_len=%d id_len=%d",total_len,id_len);
                 return false;
             }
             int32_t content_len=total_len-MTypeFieldLength-IdLenFieldLength-id_len;
@@ -90,17 +90,15 @@ namespace JsonRpc
             message=MessageFactory::Create((MessageType)mtype);
             if(message.get()==nullptr)
             {
-                LOG_ERROR("消息类型错误,构造消息类型失败");
+                LOG_WARN("RPC消息类型无效: message_type=%d message_id=%s",mtype,mid.c_str());
                 return false;
             }
             if(!message->UnSerialize(content))
             {
-                LOG_ERROR("消息正文反序列化失败");
                 return false;
             }
             if(!message->Check())
             {
-                LOG_ERROR("消息结构错误");
                 return false;
             }
             message->SetMessageId(mid);
@@ -195,6 +193,7 @@ namespace JsonRpc
         virtual void Start()override
         {
             _server.SetThreadCount(5);
+            LOG_INFO("RPC传输服务开始运行: worker_threads=%d",5);
             _server.Start();
         }
     private:
@@ -203,13 +202,14 @@ namespace JsonRpc
             auto muduo_conn=ConnectionFactory::Create(_protocol,conn);
             if(!muduo_conn)
             {
-                LOG_ERROR("create MuduoConnection failed");
+                LOG_ERROR("创建RPC服务端连接适配器失败: connection_id=%llu",(unsigned long long)conn->ConnId());
                 return;
             }
             {
                 std::unique_lock<std::mutex> lock(_mutex);
                 _conns.insert({conn->ConnId(),muduo_conn});
             }
+            LOG_INFO("RPC客户端连接已建立: connection_id=%llu fd=%d",(unsigned long long)conn->ConnId(),conn->Fd());
             if(_connect_cb)_connect_cb(muduo_conn);
         }
         void OnClose(const Muduo::PtrConnection& conn)
@@ -220,12 +220,14 @@ namespace JsonRpc
                 auto it=_conns.find(conn->ConnId());
                 if(it==_conns.end())
                 {
+                    LOG_WARN("关闭RPC连接时未找到连接记录: connection_id=%llu fd=%d",(unsigned long long)conn->ConnId(),conn->Fd());
                     conn->Shutdown();
                     return;
                 }
                 muduo_conn=it->second;
                 _conns.erase(it);
             }
+            LOG_INFO("RPC客户端连接已关闭: connection_id=%llu fd=%d",(unsigned long long)conn->ConnId(),conn->Fd());
             if(_close_cb)_close_cb(muduo_conn);
         }
         void OnMessage(const Muduo::PtrConnection& conn,Muduo::Buffer* buffer)
@@ -237,6 +239,7 @@ namespace JsonRpc
                 auto it=_conns.find(conn->ConnId());
                 if(it==_conns.end())
                 {
+                    LOG_WARN("收到未知RPC连接的数据: connection_id=%llu fd=%d buffered_bytes=%zu",(unsigned long long)conn->ConnId(),conn->Fd(),buffer->ReadableSize());
                     conn->Shutdown();
                     return;
                 }
@@ -248,15 +251,14 @@ namespace JsonRpc
                 {
                     if(muduo_buffer->ReadAbleBytes()>MAX_MESSAGE_SIZE)
                     {
+                        LOG_WARN("RPC服务端接收缓冲区超过限制，关闭连接: connection_id=%llu buffered_bytes=%zu limit_bytes=%zu",(unsigned long long)conn->ConnId(),muduo_buffer->ReadAbleBytes(),MAX_MESSAGE_SIZE);
                         return muduo_conn->Shutdown();
                     }
-                    LOG_INFO("数据不足");
                     break;
                 }
                 BaseMessage::ptr message;
                 if(!_protocol->OnMessage(muduo_buffer,message))
                 {
-                    LOG_ERROR("字节流转化为数据包失败");
                     muduo_conn->Shutdown();
                 }
                 if(_message_cb)_message_cb(muduo_conn,message);
@@ -324,14 +326,15 @@ namespace JsonRpc
             _muduo_conn=ConnectionFactory::Create(_protocol,conn);
             if(!_muduo_conn)
             {
-                LOG_ERROR("create MuduoConnection failed");
+                LOG_ERROR("创建RPC客户端连接适配器失败: connection_id=%llu",(unsigned long long)conn->ConnId());
                 return;
             }
-           
+            LOG_INFO("RPC客户端连接就绪: connection_id=%llu fd=%d",(unsigned long long)conn->ConnId(),conn->Fd());
             if(_connect_cb)_connect_cb(_muduo_conn);
         }
         void OnClose(const Muduo::PtrConnection& conn)
         {
+            LOG_INFO("RPC客户端连接已断开: connection_id=%llu fd=%d",(unsigned long long)conn->ConnId(),conn->Fd());
             if(_close_cb)_close_cb(_muduo_conn);
         }
         void OnMessage(const Muduo::PtrConnection& conn,Muduo::Buffer* buffer)
@@ -343,6 +346,7 @@ namespace JsonRpc
                 {
                     if(muduo_buffer->ReadAbleBytes()>MAX_MESSAGE_SIZE)
                     {
+                        LOG_WARN("RPC客户端接收缓冲区超过限制，关闭连接: connection_id=%llu buffered_bytes=%zu limit_bytes=%zu",(unsigned long long)conn->ConnId(),muduo_buffer->ReadAbleBytes(),MAX_MESSAGE_SIZE);
                         return _muduo_conn->Shutdown();
                     }
                     break;
@@ -350,6 +354,7 @@ namespace JsonRpc
                 BaseMessage::ptr message;
                 if(!_protocol->OnMessage(muduo_buffer,message))
                 {
+                   LOG_WARN("RPC客户端解析响应失败，关闭连接: connection_id=%llu buffered_bytes=%zu",(unsigned long long)conn->ConnId(),muduo_buffer->ReadAbleBytes());
                    return _muduo_conn->Shutdown();
                 }
                 if(_message_cb)_message_cb(_muduo_conn,message);

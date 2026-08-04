@@ -95,7 +95,10 @@ namespace JsonRpc
                     case TopicOptype::TOPIC_SUBSCRIBE:ret=SubscribeTopic(conn,request);break;
                     case TopicOptype::TOPIC_CANCEL:CancelSubscirbe(conn,request);break;
                     case TopicOptype::TOPIC_PUBLISH:ret=PublishTopic(conn,request);break;
-                    default:Response(conn,request,ResponseCode::RCODE_INVALID_OPTYPE);return;
+                    default:
+                        LOG_WARN("主题请求操作类型无效: topic=%s optype=%d message_id=%s",request->GetTopickKey().c_str(),(int)request->GetTopickOptype(),request->GetMessageId().c_str());
+                        Response(conn,request,ResponseCode::RCODE_INVALID_OPTYPE);
+                        return;
                 }
                 if(ret)
                 {
@@ -117,7 +120,15 @@ namespace JsonRpc
                 Topic::ptr topic=std::make_shared<Topic>(topic_name);
                 {
                     std::unique_lock<std::mutex> lock(_mutex);
-                    _topics.insert({topic_name,topic});
+                    auto ret=_topics.insert({topic_name,topic});
+                    if(ret.second)
+                    {
+                        LOG_INFO("主题已创建: topic=%s",topic_name.c_str());
+                    }
+                    else
+                    {
+                        LOG_WARN("主题已存在，忽略重复创建: topic=%s",topic_name.c_str());
+                    }
                 }
             }
             void RemoveTopic(const TopicRequest::ptr& request)
@@ -134,6 +145,7 @@ namespace JsonRpc
                     topic=it->second;
                     _topics.erase(it);
                 }
+                LOG_INFO("主题已移除: topic=%s",topic_name.c_str());
                 topic->RemoveAllSubscriber();
             }
             bool SubscribeTopic(const BaseConnection::ptr& conn,const TopicRequest::ptr& request)

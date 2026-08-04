@@ -51,7 +51,7 @@ namespace JsonRpc
             {
                 if(request->GetTopickOptype()!=TopicOptype::TOPIC_PUBLISH)
                 {
-                    LOG_ERROR("主题请求类型错误");
+                    LOG_WARN("收到非发布类型的主题推送: topic=%s optype=%d message_id=%s",request->GetTopickKey().c_str(),(int)request->GetTopickOptype(),request->GetMessageId().c_str());
                     return;
                 }
                 std::string topic_key=request->GetTopickKey();
@@ -59,7 +59,7 @@ namespace JsonRpc
                 PublishCallBack callback=GetSubscribe(topic_key);
                 if(!callback)
                 {
-                    LOG_ERROR("没有%s主题的回调处理函数",topic_key.c_str());
+                    LOG_WARN("主题消息没有对应的订阅回调: topic=%s message_id=%s",topic_key.c_str(),request->GetMessageId().c_str());
                     return;
                 }
                 callback(topic_key,topic_msg);
@@ -80,22 +80,26 @@ namespace JsonRpc
                 bool ret=_requestor->Send(conn,request,response);
                 if(!ret)
                 {
-                    LOG_ERROR("主题请求发送失败");
+                    LOG_ERROR("主题请求发送失败: topic=%s optype=%d message_id=%s",topic_key.c_str(),(int)type,request->GetMessageId().c_str());
                     return false;
                 }
                 TopicResponse::ptr topic_response=std::dynamic_pointer_cast<TopicResponse>(response);
                 if(!topic_response)
                 {
-                    LOG_ERROR("主题响应接受错误");
+                    LOG_WARN("主题响应无效: topic=%s optype=%d message_id=%s",topic_key.c_str(),(int)type,request->GetMessageId().c_str());
                     return false;
                 }
 
                 if(topic_response->GetResponseCode()!=ResponseCode::RCODE_OK)
                 {
-                    LOG_ERROR("主题响应结果错误：%s",Util::ErrorReason(topic_response->GetResponseCode()).c_str());
+                    LOG_WARN("主题操作失败: topic=%s optype=%d response_code=%d reason=%s",topic_key.c_str(),(int)type,(int)topic_response->GetResponseCode(),Util::ErrorReason(topic_response->GetResponseCode()).c_str());
                     return false;
                 }
 
+                if(type!=TopicOptype::TOPIC_PUBLISH)
+                {
+                    LOG_INFO("主题操作成功: topic=%s optype=%d",topic_key.c_str(),(int)type);
+                }
                 return true;
             }
             void AddSubscribe(const std::string& key,const PublishCallBack& cb)

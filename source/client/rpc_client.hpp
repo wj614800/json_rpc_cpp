@@ -170,7 +170,6 @@ namespace JsonRpc
                     bool ret=_discover_client->ServiceDiscover(method,host);
                     if(ret==false)
                     {
-                        LOG_WARN("没有发现服务:%s",method.c_str());
                         return BaseClient::ptr();
                     }
                     auto rpc_client=GetClient(host);

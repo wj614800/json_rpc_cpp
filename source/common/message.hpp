@@ -15,7 +15,6 @@ namespace JsonRpc
             std::string body;
             if(!Util::Serialize(_message,body))
             {
-                LOG_ERROR("JsonMessage序列化失败");
                 return std::string();
             }
             return body;
@@ -25,7 +24,6 @@ namespace JsonRpc
         {
             if(!Util::UnSerialize(body,_message))
             {
-                LOG_ERROR("JsonMessage反序列化失败");
                 return false;
             }
             return true;
@@ -50,7 +48,7 @@ namespace JsonRpc
         {
             if(_message[KEY_RESPONSE_CODE].isNull()||!_message[KEY_RESPONSE_CODE].isIntegral())
             {
-                LOG_ERROR("JsonResponse没有响应状态码字段或字段类型不正确");
+                LOG_WARN("JSON响应字段无效: field=rcode expected=integer");
                 return false;
             }
             return true;
@@ -80,12 +78,12 @@ namespace JsonRpc
         {
             if(_message[KEY_METHOD].isNull()||!_message[KEY_METHOD].isString())
             {
-                LOG_ERROR("Rpc请求没有方法字段或者方法字段类型错误");
+                LOG_WARN("RPC请求字段无效: field=method expected=string");
                 return false;
             }
              if(_message[KEY_PARAMS].isNull()||!_message[KEY_PARAMS].isObject())
             {
-                LOG_ERROR("Rpc请求没有参数字段或者参数字段类型错误");
+                LOG_WARN("RPC请求字段无效: field=parameters expected=object");
                 return false;
             }
             return true;
@@ -123,17 +121,17 @@ namespace JsonRpc
         {
             if(_message[KEY_TOPIC_KEY].isNull()||!_message[KEY_TOPIC_KEY].isString())
             {
-                LOG_ERROR("主题请求没有主题名字段或者主题名称字段类型错误");
+                LOG_WARN("主题请求字段无效: field=topic_key expected=string");
                 return false;
             }
             if(_message[KEY_OPTYPE].isNull()||!_message[KEY_OPTYPE].isInt())
             {
-                LOG_ERROR("主题请求没有操作类型字段或者操作类型字段类型错误");
+                LOG_WARN("主题请求字段无效: field=optype expected=integer");
                 return false;
             }
             if(_message[KEY_OPTYPE].asInt()==(int)TopicOptype::TOPIC_PUBLISH&&(_message[KEY_TOPIC_MSG].isNull()||!_message[KEY_TOPIC_MSG].isString()))
             {
-                LOG_ERROR("主题发布的主题请求没有主题消息字段或者主题消息字段类型错误");
+                LOG_WARN("主题发布请求字段无效: field=topic_msg expected=string");
                 return false;
             }
             return true;
@@ -182,12 +180,12 @@ namespace JsonRpc
         {
            if(_message[KEY_METHOD].isNull()||!_message[KEY_METHOD].isString())
             {
-                LOG_ERROR("服务请求没有方法字段或者方法字段类型错误");
+                LOG_WARN("服务请求字段无效: field=method expected=string");
                 return false;
             }
             if(_message[KEY_OPTYPE].isNull()||!_message[KEY_OPTYPE].isInt())
             {
-                LOG_ERROR("服务请求没有操作类型字段或者操作类型字段类型错误");
+                LOG_WARN("服务请求字段无效: field=optype expected=integer");
                 return false;
             }
             if(_message[KEY_OPTYPE].asInt()==(int)ServiceOptype::SERVICE_REGISTER
@@ -197,7 +195,7 @@ namespace JsonRpc
                 ||_message[KEY_HOST][KEY_HOST_PORT].isNull()
                 ||!_message[KEY_HOST][KEY_HOST_PORT].isInt()))
             {
-                LOG_ERROR("服务注册的服务请求中ip和port字段缺失或者类型错误");
+                LOG_WARN("服务注册请求地址字段无效: expected=host.ip:string,host.port:integer");
                 return false;
             }
             return true;
@@ -249,13 +247,13 @@ namespace JsonRpc
         {
             if(_message[KEY_RESPONSE_CODE].isNull()||!_message[KEY_RESPONSE_CODE].isInt())
             {
-                LOG_ERROR("Rpc响应没有响应状态码字段或字段类型错误");
+                LOG_WARN("RPC响应字段无效: field=rcode expected=integer");
                 return false;
             }
 
             if(_message[KEY_RESPONSE_CODE].asInt()==(int)ResponseCode::RCODE_OK&&_message[KEY_RESPONSE_RESULT].isNull())
             {
-                LOG_ERROR("Rpc响应字段响应状态码正确但是没有结果字段");
+                LOG_WARN("RPC响应缺少结果字段: field=result");
                 return false;
             }
 
@@ -294,36 +292,36 @@ namespace JsonRpc
         {
             if(_message[KEY_RESPONSE_CODE].isNull()||!_message[KEY_RESPONSE_CODE].isInt())
             {
-                LOG_ERROR("没有响应状态码字段或字段类型不正确");
+                LOG_WARN("服务响应字段无效: field=rcode expected=integer");
                 return false;
             }
             if(_message[KEY_OPTYPE].isNull()||!_message[KEY_OPTYPE].isInt())
             {
-                LOG_ERROR("没有操作类型字段或字段类型不正确");
+                LOG_WARN("服务响应字段无效: field=optype expected=integer");
                 return false;
             }
             if(_message[KEY_OPTYPE].asInt()==(int)ServiceOptype::SERVICE_DISCOVER)
             {
                 if(_message[KEY_METHOD].isNull()||!_message[KEY_METHOD].isString())
                 {
-                    LOG_ERROR("没有method字段或者method字段不正确");
+                    LOG_WARN("服务发现响应字段无效: field=method expected=string");
                     return false;
                 }
                 if(_message[KEY_HOST].isNull()||!_message[KEY_HOST].isArray())
                 {
-                    LOG_ERROR("没有host字段或者字段类型不正确");
+                    LOG_WARN("服务发现响应字段无效: field=host expected=array");
                     return false;
                 }
                 for(int i=0;i<_message[KEY_HOST].size();i++)
                 {
                     if(_message[KEY_HOST][i][KEY_HOST_IP].isNull()||!_message[KEY_HOST][i][KEY_HOST_IP].isString())
                     {
-                        LOG_ERROR("没有KEY_HOST_IP字段或者字段类型不正确");
+                        LOG_WARN("服务发现响应节点字段无效: index=%d field=ip expected=string",i);
                         return false;
                     }
                     if(_message[KEY_HOST][i][KEY_HOST_PORT].isNull()||!_message[KEY_HOST][i][KEY_HOST_PORT].isInt())
                     {
-                        LOG_ERROR("没有KEY_HOST_PORT字段或者字段类型不正确");
+                        LOG_WARN("服务发现响应节点字段无效: index=%d field=port expected=integer",i);
                         return false;
                     }
                 }

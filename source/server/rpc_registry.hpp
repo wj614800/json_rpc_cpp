@@ -48,7 +48,6 @@ namespace JsonRpc
                         provider=std::make_shared<Provider>(conn,host);
                         if(!provider)
                         {
-                            LOG_ERROR("构造provider失败");
                             return;
                         }
                         _conns.insert({conn,provider});
@@ -160,7 +159,6 @@ namespace JsonRpc
                         discoverer=std::make_shared<Discoverer>(conn);
                         if(!discoverer)
                         {
-                            LOG_ERROR("构造discoverer失败");
                             return;
                         }
                         _conns.insert({conn,discoverer});
@@ -255,6 +253,7 @@ namespace JsonRpc
                     std::string method=request->GetMethod();
                     Address host=request->GetHost();
                     _providers->AddProvider(conn,host,method);
+                    LOG_INFO("服务节点注册成功: method=%s host=%s:%d message_id=%s",method.c_str(),host.first.c_str(),host.second,request->GetMessageId().c_str());
                     _discoverers->OnlineNotify(method,host);
                     RegisterResponse(conn,request);
                 }
@@ -266,7 +265,7 @@ namespace JsonRpc
                 }
                 else
                 {
-                    LOG_ERROR("服务类型错误");
+                    LOG_WARN("服务请求操作类型无效: method=%s optype=%d message_id=%s",request->GetMethod().c_str(),(int)request->GetServiceOptype(),request->GetMessageId().c_str());
                     ErrorResponse(conn,request);
                 }
             }
@@ -276,6 +275,7 @@ namespace JsonRpc
                 auto provider=_providers->GetProvider(conn);
                 if(provider)
                 {
+                    LOG_INFO("服务节点连接断开: host=%s:%d method_count=%zu",provider->GetHost().first.c_str(),provider->GetHost().second,provider->GetMethods().size());
                     for(auto& method:provider->GetMethods())
                     {
                         _discoverers->OfflineNotify(method,provider->GetHost());

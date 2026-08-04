@@ -25,18 +25,18 @@ namespace JsonRpc
                 bool ret=_requestor->Send(conn,request,response);
                 if(!ret)
                 {
-                    LOG_ERROR("请求发送失败");
+                    LOG_ERROR("服务注册请求发送失败: method=%s host=%s:%d message_id=%s",method.c_str(),host.first.c_str(),host.second,request->GetMessageId().c_str());
                     return false;
                 }
                 auto service_response=std::dynamic_pointer_cast<ServiceResponse>(response);
                 if(!service_response)
                 {
-                    LOG_ERROR("请求发送成功，但是响应是空");
+                    LOG_WARN("服务注册响应无效: method=%s host=%s:%d message_id=%s",method.c_str(),host.first.c_str(),host.second,request->GetMessageId().c_str());
                     return false;
                 }
                 if(service_response->GetResponseCode()!=ResponseCode::RCODE_OK)
                 {
-                    LOG_ERROR("服务注册失败：%s",Util::ErrorReason(service_response->GetResponseCode()).c_str());
+                    LOG_WARN("服务注册被拒绝: method=%s host=%s:%d response_code=%d reason=%s",method.c_str(),host.first.c_str(),host.second,(int)service_response->GetResponseCode(),Util::ErrorReason(service_response->GetResponseCode()).c_str());
                     return false;
                 }
                 return true;
@@ -118,25 +118,25 @@ namespace JsonRpc
                 bool ret=_requestor->Send(conn,request,response);
                 if(!ret)
                 {
-                    LOG_ERROR("服务发现请求发送失败");
+                    LOG_ERROR("服务发现请求发送失败: method=%s message_id=%s",method.c_str(),request->GetMessageId().c_str());
                     return false;
                 }
                 auto service_response=std::dynamic_pointer_cast<ServiceResponse>(response);
                 if(!service_response)
                 {
-                    LOG_ERROR("服务发现请求为空");
+                    LOG_WARN("服务发现响应无效: method=%s message_id=%s",method.c_str(),request->GetMessageId().c_str());
                     return false;
                 }
                 if(service_response->GetResponseCode()!=ResponseCode::RCODE_OK)
                 {
-                    LOG_ERROR("服务发现失败：%s",Util::ErrorReason(service_response->GetResponseCode()).c_str());
+                    LOG_WARN("服务发现失败: method=%s response_code=%d reason=%s",method.c_str(),(int)service_response->GetResponseCode(),Util::ErrorReason(service_response->GetResponseCode()).c_str());
                     return false;
                 }
 
                 MethodHost::ptr method_host=std::make_shared<MethodHost>(service_response->GetHosts());
                 if(method_host->Empty())
                 {
-                    LOG_WARN("没有服务提供");
+                    LOG_WARN("服务发现结果中没有可用节点: method=%s",method.c_str());
                     return false;
                 }
 
@@ -157,6 +157,7 @@ namespace JsonRpc
                 Address host=request->GetHost();
                 if(optype==ServiceOptype::SERVICE_ONLINE)
                 {
+                    LOG_INFO("服务节点上线: method=%s host=%s:%d",method.c_str(),host.first.c_str(),host.second);
                     
                     std::unique_lock<std::mutex> lock(_mutex);
                     auto it=_method_hosts.find(method);
@@ -173,6 +174,7 @@ namespace JsonRpc
                 }
                 else if(optype==ServiceOptype::SERVICE_OFFLINE)
                 {
+                    LOG_INFO("服务节点下线: method=%s host=%s:%d",method.c_str(),host.first.c_str(),host.second);
                     std::unique_lock<std::mutex> lock(_mutex);
                     auto it=_method_hosts.find(method);
                     if(it!=_method_hosts.end())
@@ -183,7 +185,7 @@ namespace JsonRpc
                 }
                 else
                 {
-                    LOG_ERROR("服务请求类型错误");
+                    LOG_WARN("收到无效的服务状态通知: method=%s host=%s:%d optype=%d message_id=%s",method.c_str(),host.first.c_str(),host.second,(int)optype,request->GetMessageId().c_str());
                 }
             }
 

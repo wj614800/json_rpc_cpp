@@ -60,7 +60,10 @@ namespace JsonRpc
             {
                 if(_enable_register_server)
                 {
-                    _provider_client->RegisterMethod(service->GetMethod(),_host);
+                    if(!_provider_client->RegisterMethod(service->GetMethod(),_host))
+                    {
+                        LOG_ERROR("向注册中心注册RPC服务失败: method=%s host=%s:%d",service->GetMethod().c_str(),_host.first.c_str(),_host.second);
+                    }
                 }
                 _rpc_router->RegisterService(service);
             }

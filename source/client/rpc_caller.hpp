@@ -24,24 +24,24 @@ namespace JsonRpc
                 BaseMessage::ptr response;
                 if(!_requestor->Send(conn,request,response))
                 {
-                    LOG_ERROR("同步发送失败");
+                    LOG_ERROR("同步RPC请求发送失败: method=%s message_id=%s",method.c_str(),request->GetMessageId().c_str());
                     return false;
                 }
                 if(!response||response->GetMessageType()!=MessageType::RESPONSE_RPC)
                 {
-                    LOG_ERROR("结果接受失败");
+                    LOG_WARN("同步RPC响应无效: method=%s message_id=%s",method.c_str(),request->GetMessageId().c_str());
                     return false;
                 }
 
                 RpcResponse::ptr rpc_response=std::dynamic_pointer_cast<RpcResponse>(response);
                 if(!rpc_response)
                 {
-                    LOG_ERROR("响应转化失败");
+                    LOG_ERROR("同步RPC响应类型转换失败: method=%s message_id=%s",method.c_str(),request->GetMessageId().c_str());
                     return false;
                 }
                 if(rpc_response->GetResponseCode()!=ResponseCode::RCODE_OK)
                 {
-                    LOG_ERROR("%s",Util::ErrorReason(rpc_response->GetResponseCode()).c_str());
+                    LOG_WARN("同步RPC调用失败: method=%s message_id=%s response_code=%d reason=%s",method.c_str(),request->GetMessageId().c_str(),(int)rpc_response->GetResponseCode(),Util::ErrorReason(rpc_response->GetResponseCode()).c_str());
                     return false;
                 }
                 result=rpc_response->GetResponseResult();
@@ -62,7 +62,7 @@ namespace JsonRpc
                 RequestCallBack cb=std::bind(&RpcCaller::AsyncCallBack,this,response,std::placeholders::_1);
                 if(!_requestor->Send(conn,request,cb))
                 {
-                    LOG_ERROR("异步发送失败");
+                    LOG_ERROR("异步RPC请求发送失败: method=%s message_id=%s",method.c_str(),request->GetMessageId().c_str());
                     return false;
                 }
                 return true;
@@ -78,7 +78,7 @@ namespace JsonRpc
 
                 if(!_requestor->Send(conn,request,callback))
                 {
-                    LOG_ERROR("回调发送失败");
+                    LOG_ERROR("回调式RPC请求发送失败: method=%s message_id=%s",method.c_str(),request->GetMessageId().c_str());
                     return false;
                 }
                 return true;
@@ -88,20 +88,20 @@ namespace JsonRpc
             {
                 if(!message||message->GetMessageType()!=MessageType::RESPONSE_RPC)
                 {
-                    LOG_ERROR("结果接受失败");
+                    LOG_WARN("异步RPC响应无效");
                     response->set_value(Json::Value());
                     return;
                 }
                 RpcResponse::ptr rpc_message=std::dynamic_pointer_cast<RpcResponse>(message);
                 if(!rpc_message)
                 {
-                    LOG_ERROR("响应转化失败");
+                    LOG_ERROR("异步RPC响应类型转换失败: message_id=%s",message->GetMessageId().c_str());
                     response->set_value(Json::Value());
                     return;
                 }
                 if(rpc_message->GetResponseCode()!=ResponseCode::RCODE_OK)
                 {
-                    LOG_ERROR("%s",Util::ErrorReason(rpc_message->GetResponseCode()).c_str());
+                    LOG_WARN("异步RPC调用失败: message_id=%s response_code=%d reason=%s",message->GetMessageId().c_str(),(int)rpc_message->GetResponseCode(),Util::ErrorReason(rpc_message->GetResponseCode()).c_str());
                     response->set_value(Json::Value());
                     return;
                 }

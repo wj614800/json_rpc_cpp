@@ -58,7 +58,7 @@ namespace JsonRpc
             std::stringstream ss;
             if(sw->write(root,&ss)!=0)
             {
-                LOG_ERROR("serialize failed");
+                LOG_ERROR("JSON序列化失败");
                 return false;
             }
             body=ss.str();
@@ -72,7 +72,7 @@ namespace JsonRpc
             std::string err;
             if(!cr->parse(body.c_str(),body.c_str()+body.size(),&root,&err))
             {
-                LOG_ERROR("unserialize failed:%s",err.c_str());
+                LOG_WARN("JSON反序列化失败: reason=%s",err.c_str());
                 return false;
             }
             return true;

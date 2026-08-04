@@ -14,7 +14,7 @@ int main()
         bool ret=client.Call("Add",params,result);
         if(ret)
         {
-            LOG_INFO("result:%d",result.asInt());
+            LOG_INFO("RPC调用成功: method=Add result=%d",result.asInt());
         }
     }
 }

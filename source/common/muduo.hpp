@@ -339,7 +339,7 @@ namespace Muduo
             _sockfd = socket(AF_INET, SOCK_STREAM, 0);
             if (_sockfd < 0)
             {
-                LOG_ERROR("create socket failed errno:%d,err_str:%s", errno, strerror(errno));
+                LOG_ERROR("创建TCP套接字失败: errno=%d error=%s",errno,strerror(errno));
                 return false;
             }
             return true;
@@ -354,7 +354,7 @@ namespace Muduo
             inet_pton(AF_INET, ip.c_str(), &local.sin_addr);
             if (bind(_sockfd, (const sockaddr *)&local, sizeof(local)) < 0)
             {
-                LOG_ERROR("bind socket failed errno:%d,err_str:%s", errno, strerror(errno));
+                LOG_ERROR("绑定TCP监听地址失败: fd=%d ip=%s port=%d errno=%d error=%s",_sockfd,ip.c_str(),port,errno,strerror(errno));
                 return false;
             }
             return true;
@@ -364,7 +364,7 @@ namespace Muduo
         {
             if (listen(_sockfd, backlog) < 0)
             {
-                LOG_ERROR("listen socket failed errno:%d,err_str:%s", errno, strerror(errno));
+                LOG_ERROR("监听TCP套接字失败: fd=%d backlog=%d errno=%d error=%s",_sockfd,backlog,errno,strerror(errno));
                 return false;
             }
             return true;
@@ -378,7 +378,6 @@ namespace Muduo
             int fd = accept(_sockfd, (sockaddr *)&peer, &len);
             if (fd < 0)
             {
-                LOG_ERROR("socket accept failed errno:%d,err_str:%s", errno, strerror(errno));
                 return -1;
             }
 
@@ -407,7 +406,7 @@ namespace Muduo
             inet_pton(AF_INET, ip.c_str(), &peer.sin_addr);
             if (connect(_sockfd, (const sockaddr *)&peer, sizeof(peer)) < 0)
             {
-                LOG_ERROR("socket connect failed errno:%d,err_str:%s", errno, strerror(errno));
+                LOG_ERROR("连接TCP服务失败: fd=%d host=%s:%d errno=%d error=%s",_sockfd,ip.c_str(),port,errno,strerror(errno));
                 return false;
             }
             return true;
@@ -418,12 +417,12 @@ namespace Muduo
             int flag = fcntl(_sockfd, F_GETFL);
             if (flag < 0)
             {
-                LOG_ERROR("socket get flag failed,errno:%d,err_str:%s", errno, strerror(errno));
+                LOG_ERROR("读取套接字状态标志失败: fd=%d errno=%d error=%s",_sockfd,errno,strerror(errno));
                 return false;
             }
             if (fcntl(_sockfd, F_SETFL, flag | O_NONBLOCK) < 0)
             {
-                LOG_ERROR("socket set flag failed,errno:%d,err_str:%s", errno, strerror(errno));
+                LOG_ERROR("设置套接字为非阻塞模式失败: fd=%d errno=%d error=%s",_sockfd,errno,strerror(errno));
                 return false;
             }
             return true;
@@ -462,7 +461,7 @@ namespace Muduo
                     continue;
                 if (errno != EAGAIN && errno != EWOULDBLOCK)
                 {
-                    LOG_ERROR("socket receive message failed");
+                    LOG_ERROR("接收TCP数据失败: fd=%d requested_bytes=%zu errno=%d error=%s",_sockfd,len,errno,strerror(errno));
                 }
                 return -1;
             }
@@ -479,7 +478,7 @@ namespace Muduo
             }
             if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK)
             {
-                LOG_ERROR("socket send message failed");
+                LOG_ERROR("发送TCP数据失败: fd=%d requested_bytes=%zu errno=%d error=%s",_sockfd,len,errno,strerror(errno));
             }
             return -1;
         }
@@ -502,11 +501,10 @@ namespace Muduo
             }
             if(!ReuseAddress())
             {
-                LOG_ERROR("reuse address failed,errno:%d,err_str:%s",errno,strerror(errno));
+                LOG_ERROR("设置监听地址复用失败: fd=%d errno=%d error=%s",_sockfd,errno,strerror(errno));
             }
             if(!SetNonBlock())
             {
-                LOG_ERROR("NonBlock set failed,errno:%d,err_str:%s",errno,strerror(errno));
             }
             if (!Bind(ip, port))
             {
@@ -732,7 +730,7 @@ namespace Muduo
             _ep_fd = epoll_create(MAX_EVENTS_NUM);
             if (_ep_fd < 0)
             {
-                LOG_FATAL("epoll create failed errno:%d err_str:%s", errno, strerror(errno));
+                LOG_FATAL("创建epoll实例失败: errno=%d error=%s",errno,strerror(errno));
                 exit(1);
             }
         }
@@ -779,11 +777,10 @@ namespace Muduo
                 {
                     return;
                 }
-                LOG_ERROR("epoll wait failed errno:%d err_str:%s", errno, strerror(errno));
+                LOG_ERROR("等待epoll事件失败: epoll_fd=%d errno=%d error=%s",_ep_fd,errno,strerror(errno));
             }
             else if (nfds == 0)
             {
-                LOG_INFO("epoll timeout...");
             }
             else
             {
@@ -877,7 +874,7 @@ namespace Muduo
             int timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
             if (timer_fd < 0)
             {
-                LOG_FATAL("timerfd create failed errno:%d err_str:%s", errno, strerror(errno));
+                LOG_FATAL("创建timerfd失败: errno=%d error=%s",errno,strerror(errno));
                 exit(2);
             }
             struct itimerspec itime;
@@ -894,7 +891,7 @@ namespace Muduo
             uint64_t times = 0;
             if (read(_timer_fd, &times, 8) < 0)
             {
-                LOG_FATAL("read timerfd failed errno:%d,err_str:%s", errno, strerror(errno));
+                LOG_FATAL("读取timerfd失败: fd=%d errno=%d error=%s",_timer_fd,errno,strerror(errno));
                 exit(3);
             }
             return times;
@@ -1030,7 +1027,7 @@ namespace Muduo
             int event_fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
             if (event_fd < 0)
             {
-                LOG_FATAL("eventfd create failed errno:%d err_str:%s", errno, strerror(errno));
+                LOG_FATAL("创建eventfd失败: errno=%d error=%s",errno,strerror(errno));
                 exit(3);
             }
             return event_fd;
@@ -1043,7 +1040,7 @@ namespace Muduo
             {
                 if (errno == EINTR || errno == EWOULDBLOCK)
                     return;
-                LOG_FATAL("eventfd read failed errno:%d err_str:%s", errno, strerror(errno));
+                LOG_FATAL("读取eventfd失败: fd=%d errno=%d error=%s",_event_fd,errno,strerror(errno));
                 exit(3);
             }
         }
@@ -1055,7 +1052,7 @@ namespace Muduo
             {
                 if (errno == EINTR || errno == EWOULDBLOCK)
                     return;
-                LOG_FATAL("eventfd write failed errno:%d err_str:%s", errno, strerror(errno));
+                LOG_FATAL("写入eventfd失败: fd=%d errno=%d error=%s",_event_fd,errno,strerror(errno));
                 exit(4);
             }
         }
@@ -1690,7 +1687,7 @@ namespace Muduo
             bool ret = listen_socket.CreateServer(ip, port);
             if (ret == false)
             {
-                LOG_FATAL("create server failed");
+                LOG_FATAL("创建TCP服务失败: bind=%s:%d",ip.c_str(),port);
                 abort();
             }
             return listen_socket.Release();
@@ -1705,7 +1702,7 @@ namespace Muduo
                 {
                     if(errno==EINTR)continue;
                     if(errno==EAGAIN||errno==EWOULDBLOCK)break;
-                    LOG_ERROR("socket accept failed");
+                    LOG_ERROR("接受TCP连接失败: listen_fd=%d errno=%d error=%s",_listen_socket.Fd(),errno,strerror(errno));
                     return;
                 }
                 Socket socket(fd);
@@ -1984,7 +1981,7 @@ namespace Muduo
             std::ifstream ifs(filename,std::ios::binary);
             if(!ifs.is_open())
             {
-                LOG_ERROR("%s open failed",filename.c_str());
+                LOG_ERROR("打开文件失败: path=%s errno=%d error=%s",filename.c_str(),errno,strerror(errno));
                 return false;
             }
             ifs.seekg(0,std::ios::end);
@@ -1994,7 +1991,7 @@ namespace Muduo
             ifs.read(&(*content)[0],size);
             if(!ifs.good())
             {
-                LOG_ERROR("%s read failed",filename.c_str());
+                LOG_ERROR("读取文件失败: path=%s errno=%d error=%s",filename.c_str(),errno,strerror(errno));
                 ifs.close();
                 return false;
             }
@@ -2007,13 +2004,13 @@ namespace Muduo
             std::ofstream ofs(filename,std::ios::binary);
             if(!ofs.is_open())
             {
-                LOG_ERROR("%s open failed",filename.c_str());
+                LOG_ERROR("打开文件失败: path=%s errno=%d error=%s",filename.c_str(),errno,strerror(errno));
                 return false;
             }
             ofs.write(content.c_str(),content.size());
             if(!ofs.good())
             {
-                LOG_ERROR("%s write failed",filename.c_str());
+                LOG_ERROR("写入文件失败: path=%s errno=%d error=%s",filename.c_str(),errno,strerror(errno));
                 ofs.close();
                 return false;
             }
@@ -2400,7 +2397,7 @@ namespace Muduo
             }
             catch(const std::exception& e)
             {
-                LOG_ERROR("Content-Length的值不是数字");
+                LOG_WARN("HTTP请求头无效: field=Content-Length expected=unsigned_integer");
                 return 0;
             }
             return length;
@@ -2543,7 +2540,6 @@ namespace Muduo
 
         bool ParseHttpLine(const std::string& line)
         {
-            LOG_INFO("%s",line.c_str());
             std::smatch matches;
             std::regex e("(GET|HEAD|POST|PUT|DELETE) ([^?]*)(?:\\?(.*))? (HTTP/1\\.[01])(?:\n|\r\n)?", std::regex::icase);
             bool ret=std::regex_match(line,matches,e);
@@ -2856,13 +2852,12 @@ namespace Muduo
             }
             ss<<"\r\n";
             ss<<response.body;
-            LOG_INFO("send:\n%s",ss.str().c_str());
             conn->Send(ss.str().c_str(),ss.str().size());
         }
         void OnConnect(const PtrConnection& conn)
         {
             conn->SetContext(HttpContext());
-            LOG_INFO("Create a Connection:%d",conn->Fd());
+            LOG_INFO("HTTP连接已建立: fd=%d",conn->Fd());
         }
         void OnMessage(const PtrConnection& conn,Buffer* buffer)
         {
@@ -2902,7 +2897,7 @@ namespace Muduo
             _tcp_server.SetConnectedCallBack(std::bind(&HttpServer::OnConnect,this,std::placeholders::_1));
             _tcp_server.SetMessageCallBack(std::bind(&HttpServer::OnMessage,this,std::placeholders::_1,std::placeholders::_2));
             _tcp_server.SetCloseCallBack([](const PtrConnection& conn){
-                LOG_INFO("close a connect:%d",conn->Fd());
+                LOG_INFO("HTTP连接已关闭: fd=%d",conn->Fd());
             });
         }
 

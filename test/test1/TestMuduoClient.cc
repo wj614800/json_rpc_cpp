@@ -1,8 +1,8 @@
-#include"../source/common/net.hpp"
-#include"../source/common/abstract.hpp"
-#include"../source/common/dispatcher.hpp"
-#include"../source/client/requestor.hpp"
-#include"../source/client/rpc_caller.hpp"
+#include"../../source/common/net.hpp"
+#include"../../source/common/abstract.hpp"
+#include"../../source/common/dispatcher.hpp"
+#include"../../source/client/requestor.hpp"
+#include"../../source/client/rpc_caller.hpp"
 using namespace JsonRpc;
 
 int main()
@@ -31,7 +31,7 @@ int main()
     bool ret=caller->Call(conn,"Add",params,result);
     if(ret)
     {
-        LOG_INFO("result=%d",result.asInt());
+        LOG_INFO("同步RPC调用成功: method=Add result=%d",result.asInt());
     }
 
     params["num1"]=1000;
@@ -40,15 +40,15 @@ int main()
     ret=caller->Call(conn,"Add",params,response);
     if(ret)
     {
-        LOG_INFO("do other thing");
+        LOG_INFO("异步RPC请求已发送，继续执行其他任务");
         result=response.get();
         if(!result.empty())
-        LOG_INFO("result=%d",result.asInt());
+        LOG_INFO("异步RPC调用成功: method=Add result=%d",result.asInt());
     }
     params["num1"]=95;
     params["num2"]=20;
     caller->Call(conn,"Add",params,[](const BaseMessage::ptr& message){
-        LOG_INFO("receive a result");
+        LOG_INFO("RPC回调已收到响应: method=Add");
     });
     caller->Call(conn,"Sub",params,result);
     std::this_thread::sleep_for(std::chrono::seconds(3));

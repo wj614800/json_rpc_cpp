@@ -28,10 +28,10 @@ int main()
     auto server=ServerFactory::Create("127.0.0.1",8080);
     server->SetMessageCallBack(messagecallback);
     server->SetConnectCallBack([](const BaseConnection::ptr& conn){
-        LOG_INFO("link a connection");
+        LOG_INFO("RPC客户端连接已建立");
     });
     server->SetCloseCallBack([](const BaseConnection::ptr& conn){
-        LOG_INFO("close a connection");
+        LOG_INFO("RPC客户端连接已关闭");
     });
     server->Start();
     return 0;

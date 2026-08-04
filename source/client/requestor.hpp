@@ -35,7 +35,7 @@ namespace JsonRpc
                 RequestDescribe::ptr request_describe=GetRequest(response->GetMessageId());
                 if(!request_describe)
                 {
-                    LOG_ERROR("收到了消息，但是找不到请求");
+                    LOG_WARN("收到无法关联到请求的响应: message_id=%s message_type=%d",response->GetMessageId().c_str(),(int)response->GetMessageType());
                     conn->Shutdown();
                     return;
                 }
@@ -50,7 +50,7 @@ namespace JsonRpc
                 }
                 else
                 {
-                    LOG_ERROR("未知的响应类型");
+                    LOG_ERROR("请求响应模式无效: message_id=%s response_type=%d",response->GetMessageId().c_str(),(int)request_describe->rtype);
                 }
                 RemoveRequest(response->GetMessageId());
             }
@@ -60,7 +60,6 @@ namespace JsonRpc
                 auto request_describe=NewRequest(request,ResponseType::REQUEST_ASYNC);
                 if(!request_describe)
                 {
-                    LOG_ERROR("构造请求描述失败");
                     return false;
                 }
                 response=request_describe->response.get_future();
@@ -73,7 +72,6 @@ namespace JsonRpc
                 auto request_describe=NewRequest(request,ResponseType::REQUEST_CALLBACK,cb);
                 if(!request_describe)
                 {
-                    LOG_ERROR("构造请求描述失败");
                     return false;
                 }
                 conn->Send(request);
@@ -86,7 +84,6 @@ namespace JsonRpc
                 auto request_describe=NewRequest(request,ResponseType::REQUEST_ASYNC);
                 if(!request_describe)
                 {
-                    LOG_ERROR("构造请求描述失败");
                     return false;
                 }
                 future_response=request_describe->response.get_future();
@@ -104,7 +101,11 @@ namespace JsonRpc
                 }
                 {
                     std::unique_lock<std::mutex> lock(_mutex);
-                    _requests.insert({req->GetMessageId(),request_describe});
+                    auto ret=_requests.insert({req->GetMessageId(),request_describe});
+                    if(!ret.second)
+                    {
+                        LOG_ERROR("请求ID重复，无法正确关联响应: message_id=%s message_type=%d",req->GetMessageId().c_str(),(int)req->GetMessageType());
+                    }
                 }
                 return request_describe;
             }

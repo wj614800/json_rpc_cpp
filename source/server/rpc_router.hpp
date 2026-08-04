@@ -41,12 +41,12 @@ namespace JsonRpc
                 {
                     if(params.isMember(param.first)==false)
                     {
-                        LOG_ERROR("缺失参数字段:%s",param.first.c_str());
+                        LOG_WARN("RPC请求缺少参数: method=%s field=%s",_method.c_str(),param.first.c_str());
                         return false;
                     }
                     if(CheckType(param.second,params[param.first])==false)
                     {
-                        LOG_ERROR("参数字段类型不匹配");
+                        LOG_WARN("RPC请求参数类型不匹配: method=%s field=%s expected_type=%d",_method.c_str(),param.first.c_str(),(int)param.second);
                         return false;
                     }
                 }
@@ -58,7 +58,7 @@ namespace JsonRpc
                 _service_callback(params,result);
                 if(!CheckResult(result))
                 {
-                    LOG_ERROR("结果类型错误");
+                    LOG_ERROR("RPC服务返回值类型不匹配: method=%s expected_type=%d",_method.c_str(),(int)_return_type);
                     return false;
                 }
                 return true;
@@ -140,7 +140,15 @@ namespace JsonRpc
             {
                 std::unique_lock<std::mutex> lock(_mutex);
                 std::string method=service->GetMethod();
-                _services.insert({method,service});
+                auto ret=_services.insert({method,service});
+                if(ret.second)
+                {
+                    LOG_INFO("RPC服务已注册: method=%s",method.c_str());
+                }
+                else
+                {
+                    LOG_WARN("RPC服务重复注册，保留原有处理器: method=%s",method.c_str());
+                }
             }
             ServiceDescribe::ptr Select(const std::string& method)
             {
@@ -156,7 +164,11 @@ namespace JsonRpc
             void Remove(const std::string& method)
             {
                 std::unique_lock<std::mutex> lock(_mutex);
-                _services.erase(method);
+                size_t removed=_services.erase(method);
+                if(removed>0)
+                {
+                    LOG_INFO("RPC服务已移除: method=%s",method.c_str());
+                }
             }
 
         private:
@@ -175,18 +187,17 @@ namespace JsonRpc
                 auto service=_services->Select(request->GetMethod());
                 if(!service)
                 {
-                    LOG_ERROR("%s",Util::ErrorReason(ResponseCode::RCODE_NOT_FOUND_SERVICE).c_str());
+                    LOG_WARN("RPC服务不存在: method=%s message_id=%s",request->GetMethod().c_str(),request->GetMessageId().c_str());
                     return Response(conn,request,Json::Value(),ResponseCode::RCODE_NOT_FOUND_SERVICE);
                 }
                 if(!service->CheckParams(request->GetParams()))
                 {
-                    LOG_ERROR("%s",Util::ErrorReason(ResponseCode::RCODE_INVALID_PARAMS).c_str());
                     return Response(conn,request,Json::Value(),ResponseCode::RCODE_INVALID_PARAMS);
                 }
                 Json::Value result;
                 if(!service->Caller(request->GetParams(),result))
                 {
-                    LOG_ERROR("%s",Util::ErrorReason(ResponseCode::RCODE_INTERNAL_ERROR).c_str());
+                    LOG_ERROR("RPC服务返回值校验失败: method=%s message_id=%s",request->GetMethod().c_str(),request->GetMessageId().c_str());
                     return Response(conn,request,Json::Value(),ResponseCode::RCODE_INTERNAL_ERROR);
                 }
                 Response(conn,request,result,ResponseCode::RCODE_OK);

@@ -7,7 +7,7 @@ int main()
     bool ret=client.CreateTopic("hello");
     if(!ret)
     {
-        LOG_INFO("创建主题失败");
+        LOG_ERROR("创建主题失败: topic=hello");
         exit(1);
     }
     uint64_t cnt=0;
